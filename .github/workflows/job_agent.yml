@@ -1,0 +1,78 @@
+name: CoS Job Agent
+
+on:
+  schedule:
+    - cron: '0 16 * * *'    # 8:00 AM PT
+    - cron: '0 20 * * *'    # 12:00 PM PT
+    - cron: '0 1 * * *'     # 5:00 PM PT
+  workflow_dispatch:         # Lets you run manually anytime
+
+jobs:
+  run-agent:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install Playwright and Chromium
+        run: |
+          playwright install chromium
+          playwright install-deps chromium
+
+      - name: Prepare assets
+        env:
+          GMAIL_TOKEN_JSON: ${{ secrets.GMAIL_TOKEN_JSON }}
+          RESUME_BASE64: ${{ secrets.RESUME_BASE64 }}
+        run: |
+          mkdir -p assets
+          echo "$GMAIL_TOKEN_JSON" > assets/gmail_token.json
+          echo "$RESUME_BASE64" | base64 --decode > assets/Priya_Narula_Resume_2026.pdf
+
+      - name: Run job agent
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          RESUME_PATH: assets/Priya_Narula_Resume_2026.pdf
+          GMAIL_TOKEN_PATH: assets/gmail_token.json
+        run: python main.py
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-logs-${{ github.run_id }}
+          retention-days: 7
+```
+
+---
+
+### Step 3: Commit it
+Scroll down → click the green **"Commit new file"** button ✅
+
+---
+
+## Once committed your repo will look like this:
+```
+cos-job-agent/
+├── .github/
+│   └── workflows/
+│       └── job_agent.yml   ← scheduler lives here
+├── main.py
+├── scraper.py
+├── ai_layer.py
+├── apply_engine.py
+├── database.py
+├── reporter.py
+└── requirements.txt
